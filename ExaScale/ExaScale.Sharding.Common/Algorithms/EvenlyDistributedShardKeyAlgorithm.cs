@@ -22,7 +22,7 @@ namespace ExaScale.Sharding.Common.Algorithms
             {
                 shardId = shardConfiguration.ShardCount;
             }
-            return 1;
+            return shardId;
         }
     }
 }
