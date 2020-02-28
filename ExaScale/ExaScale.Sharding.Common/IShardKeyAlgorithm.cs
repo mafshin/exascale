@@ -4,6 +4,6 @@ namespace ExaScale.ShardManager
 {
     public interface IShardKeyAlgorithm
     {
-        int GetShardId(string shardKey;
+        int GetShardId(string shardKey);
     }
 }
