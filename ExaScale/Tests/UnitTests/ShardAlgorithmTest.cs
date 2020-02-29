@@ -3,6 +3,7 @@ using ExaScale.Sharding.Common.Algorithms;
 using ExaScale.Sharding.DataProvider;
 using ExaScale.ShardManager;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using UnitTests.Common;
 using UnitTests.InMemoryDataProvider;
 
 namespace UnitTests
@@ -14,8 +15,8 @@ namespace UnitTests
         public void ChangeShardCount_Test()
         {
             ShardConfiguration shardConfiguration = new ShardConfiguration(3);
-            IShardKeyAlgorithm shardKeyAlgorithm = new EvenlyDistributedShardKeyAlgorithm(shardConfiguration);
-            IMainShardDataProvider dataProvider = new InMemoryMainShardDataProvider(shardConfiguration, shardKeyAlgorithm);
+            IShardKeyAlgorithm shardKeyAlgorithm = new EvenlyDistributedShardKeyAlgorithm(shardConfiguration);            
+            InMemoryDB dataProvider = new InMemoryDB(shardConfiguration, shardKeyAlgorithm);
             int shardId;
             shardId = dataProvider.GetShardId("1");
             Assert.AreEqual(1, shardId);

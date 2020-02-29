@@ -4,6 +4,7 @@ using ExaScale.ShardManager;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using UnitTests.Common;
 
 namespace UnitTests.InMemoryDataProvider
 {
@@ -27,51 +28,50 @@ namespace UnitTests.InMemoryDataProvider
             var shard = GetShard(customer.CustomerId.ToString());
             shard.AddCustomer(customer);
         }
-
-        public new void AddShard()
-        {
-            base.AddShard();
-        }
     }
 
     public class InMemoryConnectionProvider : IConnectionProvider
     {
-        public string GetConnectionString(int shardId)
+        public string GetMainConnectionString()
+        {
+            return null;
+        }
+
+        public string GetShardConnectionString(int shardId)
         {
             return shardId.ToString();
         }
     }
     public class InMemoryMainShardDataProvider : IMainShardDataProvider
     {
-        private Dictionary<string, int> _shardMap;
         private IShardKeyAlgorithm _shardKeyAlgorithm;
         private ShardConfiguration _shardConfiguration;
 
         public InMemoryMainShardDataProvider(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm)
         {
-            _shardMap = new Dictionary<string, int>();
             _shardConfiguration = shardConfiguration;
             _shardKeyAlgorithm = algorithm;
         }
-        public int GetShardId(string shardKey)
+
+        public void Initialize(string connection)
         {
-            if (_shardMap.ContainsKey(shardKey))
-            {
-                return _shardMap[shardKey];
-            }
-            else
-            {
-                var shardId = _shardKeyAlgorithm.GetShardId(shardKey);
-                _shardMap.Add(shardKey, shardId);
-                return shardId;
-            }
+
         }
 
-        public int AddShard()
+        public void LoadShardMap(Dictionary<string, int> _shardMap)
         {
-            return _shardConfiguration.IncreaseShardCount();
+
         }
-        
+
+        public void AddShardKey(string shardKey, int shardId)
+        {
+
+        }
+
+        public void AddShard(int shardId)
+        {
+
+        }
     }
     public class InMemorySubShardDataProvider : IInMemorySubShardDataProvider
     {
@@ -95,12 +95,5 @@ namespace UnitTests.InMemoryDataProvider
     public interface IInMemorySubShardDataProvider : ISubShardDataProvider
     {
         void AddCustomer(SampleCustomerInformation customer);
-    }
-
-    public class SampleCustomerInformation
-    {
-        public int CustomerId { get; set; }
-        public string Name { get; set; }
-        public int Age { get; set; }
     }
 }

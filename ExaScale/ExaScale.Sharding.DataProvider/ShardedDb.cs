@@ -9,24 +9,36 @@ namespace ExaScale.Sharding.DataProvider
 {
     public class ShardedDb<T> where T : ISubShardDataProvider, new()
     {
+        private Dictionary<string, int> _shardMap;
         private readonly IMainShardDataProvider _mainShardDataProvider;
         private readonly IConnectionProvider _connectionProvider;
         private Dictionary<int, ISubShardDataProvider> subShardMap;
-
+        protected readonly ShardConfiguration _shardConfiguration;
+        private IShardKeyAlgorithm _shardKeyAlgorithm;
         public ShardedDb(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm,
             IMainShardDataProvider mainShardDataProvider, IConnectionProvider connectionProvider)
         {
+            this._shardConfiguration = shardConfiguration;
+            this._shardKeyAlgorithm = algorithm;
             this._mainShardDataProvider = mainShardDataProvider;
             this._connectionProvider = connectionProvider;
             subShardMap = new Dictionary<int, ISubShardDataProvider>();
+            _shardMap = new Dictionary<string, int>();
 
-            //TODO: Load existing shards
-            // LoadShardMap();
+            var connection = connectionProvider.GetMainConnectionString();
+            mainShardDataProvider.Initialize(connection);
 
-            if(subShardMap.Count < shardConfiguration.ShardCount)
+            mainShardDataProvider.LoadShardMap(_shardMap);
+
+            if (subShardMap.Count < shardConfiguration.ShardCount)
             {
                 SetupShard(shardConfiguration.ShardCount - subShardMap.Count);
             }
+        }
+
+        public virtual void LoadShardMap(Dictionary<string, int> map)
+        {
+
         }
 
         private void SetupShard(int newShardCount)
@@ -41,29 +53,41 @@ namespace ExaScale.Sharding.DataProvider
         {
             var shard = Activator.CreateInstance<T>();
             var newShardId = subShardMap.Keys.DefaultIfEmpty().Max() + 1;
-            var connection = _connectionProvider.GetConnectionString(newShardId);
+            var connection = _connectionProvider.GetShardConnectionString(newShardId);
             shard.Initialize(connection);
+            _mainShardDataProvider.AddShard(newShardId);
             subShardMap.Add(newShardId, shard);
             return newShardId;
         }
 
-        protected int AddShard()
+        public int AddShard()
         {
-            _mainShardDataProvider.AddShard();
+            _shardConfiguration.IncreaseShardCount();
 
             var newShardId = SetupShard();
 
             return newShardId;
         }
 
-        protected int GetShardId(string shardKey)
+
+        public int GetShardId(string shardKey)
         {
-            return _mainShardDataProvider.GetShardId(shardKey);
+            if (_shardMap.ContainsKey(shardKey))
+            {
+                return _shardMap[shardKey];
+            }
+            else
+            {
+                var shardId = _shardKeyAlgorithm.GetShardId(shardKey);
+                _mainShardDataProvider.AddShardKey(shardKey, shardId);
+                _shardMap.Add(shardKey, shardId);
+                return shardId;
+            }
         }
 
         protected ISubShardDataProvider GetShard(string shardKey)
         {
-            var shardId = GetShardId(shardKey);            
+            var shardId = GetShardId(shardKey);
 
             return subShardMap[shardId];
         }

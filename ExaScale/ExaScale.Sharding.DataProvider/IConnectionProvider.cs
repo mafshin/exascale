@@ -2,6 +2,7 @@
 {
     public interface IConnectionProvider
     {
-        string GetConnectionString(int shardId);
+        string GetShardConnectionString(int shardId);
+        string GetMainConnectionString();
     }
 }
