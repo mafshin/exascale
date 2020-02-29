@@ -7,9 +7,9 @@ namespace UnitTests.Common
     public class SampleCustomerInformation
     {
         public int CustomerId { get; set; }
-        public object Birthdate { get; internal set; }
-        public object Job { get; internal set; }
-        public object Title { get; internal set; }
-        public object Address { get; internal set; }
+        public DateTime Birthdate { get; internal set; }
+        public string Job { get; internal set; }
+        public string Title { get; internal set; }
+        public string Address { get; internal set; }
     }
 }

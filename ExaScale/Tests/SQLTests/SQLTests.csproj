@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net48</TargetFramework>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -17,6 +17,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\ExaScale.Sharding.Common\ExaScale.Sharding.Common.csproj" />
     <ProjectReference Include="..\..\ExaScale.Sharding.DataProvider\ExaScale.Sharding.DataProvider.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Transactions" />
   </ItemGroup>
 
 </Project>

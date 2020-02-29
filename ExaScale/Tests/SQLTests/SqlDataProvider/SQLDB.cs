@@ -87,7 +87,7 @@ namespace UnitTests.SqlDataProvider
                     if (dr != null)
                     {
                         dr.Close();
-                        dr.DisposeAsync();
+                        dr.Dispose();
                     }
                 }
             }
@@ -147,7 +147,7 @@ namespace UnitTests.SqlDataProvider
 
                 sqlCmd.Parameters.AddWithValue("@customerId", customer.CustomerId);
                 sqlCmd.Parameters.AddWithValue("@title", customer.Title);
-                sqlCmd.Parameters.AddWithValue("@birthdate", customer.Birthdate);
+                sqlCmd.Parameters.AddWithValue("@birthdate", customer.Birthdate.Date);
                 sqlCmd.Parameters.AddWithValue("@address", customer.Address);
                 sqlCmd.Parameters.AddWithValue("@job", customer.Job);
 

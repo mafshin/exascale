@@ -24,12 +24,39 @@ namespace UnitTests
                 AddCustomer(db, 1);
                 AddCustomer(db, 2);
                 AddCustomer(db, 3);
+                AddCustomer(db, 4);
 
-
+                // 3 shards
                 var stats = db.GetTotalShardItems();
-                Assert.AreEqual(1, stats[0].ItemsCount);
+                Assert.AreEqual(2, stats[0].ItemsCount);
                 Assert.AreEqual(1, stats[1].ItemsCount);
                 Assert.AreEqual(1, stats[2].ItemsCount);
+
+                // 4 shards
+                db.AddShard();
+                AddCustomer(db, 5);
+                AddCustomer(db, 6);
+
+                stats = db.GetTotalShardItems();
+                Assert.AreEqual(3, stats[0].ItemsCount);
+                Assert.AreEqual(2, stats[1].ItemsCount);
+                Assert.AreEqual(1, stats[2].ItemsCount);
+
+                // 5 shards
+                db.AddShard();
+
+                AddCustomer(db, 7);
+                AddCustomer(db, 8);
+                AddCustomer(db, 9);
+                AddCustomer(db, 10);
+                AddCustomer(db, 11);
+
+                stats = db.GetTotalShardItems();
+                Assert.AreEqual(4, stats[0].ItemsCount);
+                Assert.AreEqual(3, stats[1].ItemsCount);
+                Assert.AreEqual(2, stats[2].ItemsCount);
+                Assert.AreEqual(1, stats[3].ItemsCount);
+                Assert.AreEqual(1, stats[4].ItemsCount);
             }   
         }
 
