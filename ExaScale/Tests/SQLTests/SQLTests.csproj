@@ -1,7 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
+    <TargetFramework Condition="'$(CoreOnly)' == 'True'">netcoreapp3.1</TargetFramework>
+    <TargetFramework Condition="'$(CoreOnly)' != 'True'">net48</TargetFramework>
 
     <IsPackable>false</IsPackable>
   </PropertyGroup>
