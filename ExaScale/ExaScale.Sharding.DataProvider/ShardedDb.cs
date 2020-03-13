@@ -7,12 +7,14 @@ using System.Text;
 
 namespace ExaScale.Sharding.DataProvider
 {
-    public class ShardedDb<T> where T : ISubShardDataProvider, new()
+    public class ShardedDb<T, V> : IDisposable where V : ISubShardDataProvider, new()
+        where T : class, IMainShardDataProvider
     {
+        private List<int> _shards;
         private Dictionary<string, int> _shardMap;
         private readonly IMainShardDataProvider _mainShardDataProvider;
         private readonly IConnectionProvider _connectionProvider;
-        private Dictionary<int, ISubShardDataProvider> subShardMap;
+        private Dictionary<int, V> subShardMap;
         protected readonly ShardConfiguration _shardConfiguration;
         private IShardKeyAlgorithm _shardKeyAlgorithm;
         public ShardedDb(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm,
@@ -22,13 +24,14 @@ namespace ExaScale.Sharding.DataProvider
             this._shardKeyAlgorithm = algorithm;
             this._mainShardDataProvider = mainShardDataProvider;
             this._connectionProvider = connectionProvider;
-            subShardMap = new Dictionary<int, ISubShardDataProvider>();
+            subShardMap = new Dictionary<int, V>();
             _shardMap = new Dictionary<string, int>();
+            _shards = new List<int>();
 
             var connection = connectionProvider.GetMainConnectionString();
             mainShardDataProvider.Initialize(connection);
 
-            mainShardDataProvider.LoadShardMap(_shardMap);
+            mainShardDataProvider.LoadShardMap(_shards, _shardMap);
 
             if (subShardMap.Count < shardConfiguration.ShardCount)
             {
@@ -51,11 +54,15 @@ namespace ExaScale.Sharding.DataProvider
 
         private int SetupShard()
         {
-            var shard = Activator.CreateInstance<T>();
+            var shard = Activator.CreateInstance<V>();
             var newShardId = subShardMap.Keys.DefaultIfEmpty().Max() + 1;
             var connection = _connectionProvider.GetShardConnectionString(newShardId);
             shard.Initialize(connection);
-            _mainShardDataProvider.AddShard(newShardId);
+
+            if (!_shards.Contains(newShardId))
+            {
+                _mainShardDataProvider.AddShard(newShardId);
+            }
             subShardMap.Add(newShardId, shard);
             return newShardId;
         }
@@ -99,6 +106,25 @@ namespace ExaScale.Sharding.DataProvider
                 ShardId = d.Key,
                 ItemsCount = d.Value.GetShardItemsCount()
             }).ToList();
+        }
+
+        public void Dispose()
+        {
+            _mainShardDataProvider.Dispose();
+            foreach (var item in subShardMap.Values)
+            {
+                item.Dispose();
+            }
+        }
+
+        public IEnumerable<V> GetAllShards()
+        {
+            return subShardMap.Values.AsEnumerable();
+        }
+
+        public T GetMainShard()
+        {
+            return _mainShardDataProvider as T;
         }
     }
 

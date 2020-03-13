@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace UnitTests.Common
+namespace PerformanceTest.Common
 {
     public class SampleCustomerInformation
     {

@@ -8,7 +8,7 @@ using UnitTests.Common;
 
 namespace UnitTests.InMemoryDataProvider
 {
-    public class InMemoryDB : ShardedDb<InMemorySubShardDataProvider>
+    public class InMemoryDB : ShardedDb<InMemoryMainShardDataProvider, InMemorySubShardDataProvider>
     {
         public InMemoryDB(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm) :
             base(shardConfiguration, algorithm,
@@ -58,7 +58,7 @@ namespace UnitTests.InMemoryDataProvider
 
         }
 
-        public void LoadShardMap(Dictionary<string, int> _shardMap)
+        public void LoadShardMap(List<int> shards, Dictionary<string, int> _shardMap)
         {
 
         }
@@ -71,6 +71,15 @@ namespace UnitTests.InMemoryDataProvider
         public void AddShard(int shardId)
         {
 
+        }
+
+        public void Dispose()
+        {
+
+        }
+
+        public void LoadShardMap(Dictionary<string, int> _shardMap)
+        {
         }
     }
     public class InMemorySubShardDataProvider : IInMemorySubShardDataProvider
@@ -89,6 +98,11 @@ namespace UnitTests.InMemoryDataProvider
         public long GetShardItemsCount()
         {
             return customers.Count;
+        }
+
+        public void Dispose()
+        {
+            customers.Clear();            
         }
     }
 

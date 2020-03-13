@@ -1,15 +1,15 @@
 ﻿using ExaScale.Sharding.Common;
 using ExaScale.Sharding.DataProvider;
 using ExaScale.ShardManager;
+using PerformanceTest.Common;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
-using UnitTests.Common;
 
-namespace UnitTests.SqlDataProvider
+namespace PerformanceTest.SqlDataProvider
 {
-    public class SqlDb : ShardedDb<SqlSubShardDataProvider>
+    public class SqlDb : ShardedDb<SqlMainShardDataProvider, SqlSubShardDataProvider>
     {
         public SqlDb(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm) :
             base(shardConfiguration, algorithm,
@@ -29,6 +29,23 @@ namespace UnitTests.SqlDataProvider
             var shard = GetShard(customer.CustomerId.ToString());
             shard.AddCustomer(customer);
         }
+
+        internal void AddOrder(SampleOrderInformation order)
+        {
+            var shard = GetShard(order.CustomerId.ToString());
+            shard.AddOrder(order);
+        }
+
+        internal void ClearAll()
+        {
+            GetMainShard().ClearAll();
+
+            var shards = GetAllShards();
+            foreach (var shard in shards)
+            {
+                shard.ClearAll();
+            }
+        }
     }
 
     public class SqlConnectionProvider : IConnectionProvider
@@ -44,11 +61,12 @@ namespace UnitTests.SqlDataProvider
             return string.Format(format, dbName, $"Shard{shardId:D2}");
         }
     }
-    public class SqlMainShardDataProvider : IMainShardDataProvider
+    public class SqlMainShardDataProvider : IMainShardDataProvider, IDisposable, ISqlDataProvider
     {
         private IShardKeyAlgorithm _shardKeyAlgorithm;
         private ShardConfiguration _shardConfiguration;
         private string _connection;
+        private SqlConnection sqlConn;
 
         public SqlMainShardDataProvider(ShardConfiguration shardConfiguration, IShardKeyAlgorithm algorithm)
         {
@@ -59,6 +77,53 @@ namespace UnitTests.SqlDataProvider
         public void Initialize(string connection)
         {
             _connection = connection;
+
+            if (sqlConn == null)
+                sqlConn = new SqlConnection(_connection);
+
+            if (sqlConn.State != System.Data.ConnectionState.Open)
+                sqlConn.Open();
+
+        }
+
+        public void LoadShardMap(List<int> shards, Dictionary<string, int> _shardMap)
+        {
+            using (SqlConnection sqlConn = new SqlConnection(_connection))
+            {
+                sqlConn.Open();
+
+                SqlCommand sqlCmd = new SqlCommand("GetShardMap", sqlConn);
+                sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
+
+                SqlDataReader dr = null;
+                try
+                {
+                    dr = sqlCmd.ExecuteReader();
+                    while (dr.Read())
+                    {
+                        var shardId = Convert.ToInt32(dr["ShardId"]);
+                        var shardKey = dr["ShardKey"].ToString();
+
+                        _shardMap.Add(shardKey, shardId);
+                    }
+
+                    dr.NextResult();
+                    while (dr.Read())
+                    {
+                        var shardId = Convert.ToInt32(dr["ShardId"]);
+
+                        shards.Add(shardId);
+                    }
+                }
+                finally
+                {
+                    if (dr != null)
+                    {
+                        dr.Close();
+                        dr.Dispose();
+                    }
+                }
+            }
         }
 
         public void LoadShardMap(Dictionary<string, int> _shardMap)
@@ -67,7 +132,7 @@ namespace UnitTests.SqlDataProvider
             {
                 sqlConn.Open();
 
-                SqlCommand sqlCmd = new SqlCommand("GetShardMap", sqlConn);
+                SqlCommand sqlCmd = new SqlCommand("GetShards", sqlConn);
                 sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
 
                 SqlDataReader dr = null;
@@ -124,9 +189,29 @@ namespace UnitTests.SqlDataProvider
                 SqlCommand sqlCmd = new SqlCommand("AddShard", sqlConn);
                 sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
 
-                SqlParameter sqlShardIdParam = new SqlParameter("@shardId", shardId);                                
+                SqlParameter sqlShardIdParam = new SqlParameter("@shardId", shardId);
 
                 sqlCmd.Parameters.Add(sqlShardIdParam);
+
+                sqlCmd.ExecuteNonQuery();
+            }
+        }
+
+        public void Dispose()
+        {
+            if (sqlConn != null)
+            {
+                sqlConn.Close();
+            }
+        }
+        public void ClearAll()
+        {
+            using (SqlConnection sqlConn = new SqlConnection(_connection))
+            {
+                sqlConn.Open();
+
+                SqlCommand sqlCmd = new SqlCommand("ClearAll", sqlConn);
+                sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
 
                 sqlCmd.ExecuteNonQuery();
             }
@@ -135,6 +220,7 @@ namespace UnitTests.SqlDataProvider
     public class SqlSubShardDataProvider : ISqlSubShardDataProvider
     {
         private string _connection;
+        private SqlConnection sqlConn;
 
         public void AddCustomer(SampleCustomerInformation customer)
         {
@@ -158,6 +244,12 @@ namespace UnitTests.SqlDataProvider
         public void Initialize(string connection)
         {
             this._connection = connection;
+
+            if (sqlConn == null)
+                sqlConn = new SqlConnection(_connection);
+
+            if (sqlConn.State != System.Data.ConnectionState.Open)
+                sqlConn.Open();
         }
 
         public long GetShardItemsCount()
@@ -168,15 +260,55 @@ namespace UnitTests.SqlDataProvider
 
                 SqlCommand sqlCmd = new SqlCommand("GetShardItemsCount", sqlConn);
                 sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
-                               
+
                 var ret = sqlCmd.ExecuteScalar();
 
                 return Convert.ToInt64(ret.ToString());
             }
         }
+
+        public void Dispose()
+        {
+            if (sqlConn != null)
+            {
+                sqlConn.Close();
+            }
+        }
+
+        internal void AddOrder(SampleOrderInformation order)
+        {
+            using (SqlConnection sqlConn = new SqlConnection(_connection))
+            {
+                sqlConn.Open();
+
+                SqlCommand sqlCmd = new SqlCommand("AddOrder", sqlConn);
+                sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
+
+                sqlCmd.Parameters.AddWithValue("@customerId", order.CustomerId);
+                sqlCmd.Parameters.AddWithValue("@count", order.Count);
+                sqlCmd.Parameters.AddWithValue("@price", order.Price);
+                sqlCmd.Parameters.AddWithValue("@description", order.Description);
+                sqlCmd.Parameters.AddWithValue("@orderEntryDate", order.OrderEntryDate);
+
+                sqlCmd.ExecuteNonQuery();
+            }
+        }
+
+        public void ClearAll()
+        {
+            using (SqlConnection sqlConn = new SqlConnection(_connection))
+            {
+                sqlConn.Open();
+
+                SqlCommand sqlCmd = new SqlCommand("ClearAll", sqlConn);
+                sqlCmd.CommandType = System.Data.CommandType.StoredProcedure;
+
+                sqlCmd.ExecuteNonQuery();
+            }
+        }
     }
 
-    public interface ISqlSubShardDataProvider : ISubShardDataProvider
+    public interface ISqlSubShardDataProvider : ISubShardDataProvider, ISqlDataProvider
     {
         void AddCustomer(SampleCustomerInformation customer);
     }
